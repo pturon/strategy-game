@@ -11,10 +11,20 @@ public class ResourceManager {
     public static final int SPRITE_WIDTH = 32;
     public static final int SPRITE_HEIGHT = 48;
 
+    private static BufferedImage arrows;
+
     private static BufferedImage background;
     private static ArrayList<BufferedImage> unitIdleSprites = new ArrayList<>();
     private static ArrayList<BufferedImage> unitWalkingSprites = new ArrayList<>();
     private static ArrayList<BufferedImage> unitAttackSprites = new ArrayList<>();
+
+    public static void load(){
+        try {
+            arrows = ImageIO.read(new File(FOLDER+"arrows.png"));
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+    }
 
     public static void setBackground(String fileName){
         try{
@@ -57,5 +67,9 @@ public class ResourceManager {
 
     public static BufferedImage getWalkingFrame(int unit, int frame, int direction) {
         return unitWalkingSprites.get(unit).getSubimage(frame*SPRITE_WIDTH, SPRITE_HEIGHT*direction, SPRITE_WIDTH, SPRITE_HEIGHT);
+    }
+
+    public static BufferedImage getArrow(int width, int height, int type){
+        return arrows.getSubimage(width*type,0,width,height);
     }
 }
