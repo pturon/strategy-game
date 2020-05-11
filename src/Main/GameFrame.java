@@ -6,7 +6,7 @@ import java.awt.event.*;
 
 public class GameFrame extends JFrame {
 
-    private static final int FPS = 30;
+    private static final int FPS = 60;
 
     private static final int WIDTH = 640;
     private static final int HEIGHT = 512;

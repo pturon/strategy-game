@@ -1,6 +1,7 @@
 package Game;
 
 import Main.Clock;
+import Main.ResourceManager;
 import Main.View;
 
 import java.awt.*;
@@ -8,11 +9,12 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 
 public class GameBoard implements View {
 
-    private static final int TILE_WIDTH = 64;
-    private static final int TILE_HEIGHT = 64;
+    private static final int TILE_WIDTH = 32;
+    private static final int TILE_HEIGHT = 32;
 
     private int visible_width;
     private int visible_height;
@@ -26,15 +28,26 @@ public class GameBoard implements View {
     private int markerPosX = 0;
     private int markerPosY = 0;
 
-    private Unit[][] units;
+    private ArrayList<Unit> units;
     private Unit selectedUnit;
+
+    private int idleAnimationFrame = 0;
+    private int idleAnimationTimer = 0;
+    private final int IDLE_ANIMATION_FRAME_DURATION = 10;
 
     public GameBoard(int width, int height){
         board_width = width;
         board_height = height;
-        units = new Unit[board_width][board_height];
+        units = new ArrayList<>();
         visible_width = 640 / TILE_WIDTH;
         visible_height = 512 / TILE_HEIGHT;
+
+        units.add(new Unit("test_sprite"));
+        for (Unit u: units) {
+            u.setSpritesheetPos(ResourceManager.addSpritesheet(u.getName()));
+        }
+        units.get(0).setPosX(1);
+        units.get(0).setPosY(1);
     }
 
     @Override
@@ -53,6 +66,9 @@ public class GameBoard implements View {
         g.setColor(new Color(255,0,0));
         g.drawRect(markerPosX*TILE_WIDTH,markerPosY*TILE_HEIGHT,TILE_WIDTH,TILE_HEIGHT);
         //units
+        for (Unit u: units) {
+            g.drawImage(ResourceManager.getSpriteAnimationFrame(u.getSpritesheetPos(),idleAnimationFrame),u.getPosX()*TILE_WIDTH,u.getPosY()*TILE_HEIGHT - 16, null);
+        }
 
         return image;
     }
@@ -140,6 +156,15 @@ public class GameBoard implements View {
 
     @Override
     public void step() {
-
+        if(idleAnimationTimer < IDLE_ANIMATION_FRAME_DURATION){
+            idleAnimationTimer ++;
+        } else {
+            idleAnimationTimer = 0;
+            if(idleAnimationFrame == 3){
+                idleAnimationFrame = 0;
+            } else {
+                idleAnimationFrame++;
+            }
+        }
     }
 }
