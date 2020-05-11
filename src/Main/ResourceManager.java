@@ -12,7 +12,8 @@ public class ResourceManager {
     public static final int SPRITE_HEIGHT = 48;
 
     private static BufferedImage background;
-    private static ArrayList<BufferedImage> unitSprites = new ArrayList<>();
+    private static ArrayList<BufferedImage> unitIdleSprites = new ArrayList<>();
+    private static ArrayList<BufferedImage> unitWalkingSprites = new ArrayList<>();
     private static ArrayList<BufferedImage> unitAttackSprites = new ArrayList<>();
 
     public static void setBackground(String fileName){
@@ -30,19 +31,31 @@ public class ResourceManager {
         return null;
     }
 
-    public static int addSpritesheet(String fileName){
+    public static int addIdleSpritesheet(String fileName){
         try{
-            unitSprites.add(ImageIO.read(new File(FOLDER+fileName+".png")));
-            return unitSprites.size()-1;
+            unitIdleSprites.add(ImageIO.read(new File(FOLDER+fileName+".png")));
+            return unitIdleSprites.size()-1;
         } catch(Exception e){
             e.printStackTrace();
         }
         return -1;
     }
 
-    public static BufferedImage getSpriteAnimationFrame(int unit, int frame) {
-        return unitSprites.get(unit).getSubimage(frame*SPRITE_WIDTH, 0, SPRITE_WIDTH, SPRITE_HEIGHT);
+    public static BufferedImage getIdleFrame(int unit, int frame) {
+        return unitIdleSprites.get(unit).getSubimage(frame*SPRITE_WIDTH, 0, SPRITE_WIDTH, SPRITE_HEIGHT);
     }
 
+    public static int addWalkingSpritesheet(String fileName){
+        try{
+            unitWalkingSprites.add(ImageIO.read(new File(FOLDER+fileName+"_walking.png")));
+            return unitWalkingSprites.size()-1;
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+        return -1;
+    }
 
+    public static BufferedImage getWalkingFrame(int unit, int frame, int direction) {
+        return unitWalkingSprites.get(unit).getSubimage(frame*SPRITE_WIDTH, SPRITE_HEIGHT*direction, SPRITE_WIDTH, SPRITE_HEIGHT);
+    }
 }

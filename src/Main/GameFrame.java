@@ -67,9 +67,11 @@ public class GameFrame extends JFrame {
 
             @Override
             public void paint(Graphics g) {
-                Image currentImage = currentView.getCurrentImage();
-                if(currentImage != null) {
-                    g.drawImage(currentImage, 0, 0, null);
+                if(currentView!=null) {
+                    Image currentImage = currentView.getCurrentImage();
+                    if (currentImage != null) {
+                        g.drawImage(currentImage, 0, 0, null);
+                    }
                 }
             }
         };
