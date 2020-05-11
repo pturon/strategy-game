@@ -22,7 +22,6 @@ public class GraphicsManager extends Thread implements Runnable{
         while(true) {
             try {
                 viewport.repaint();
-
                 Thread.sleep(1);
             } catch(InterruptedException exception) {
                 Thread.currentThread().interrupt();

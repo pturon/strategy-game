@@ -6,6 +6,8 @@ import java.awt.event.*;
 
 public class GameFrame extends JFrame {
 
+    private static final int FPS = 30;
+
     private static final int WIDTH = 640;
     private static final int HEIGHT = 512;
 
@@ -65,7 +67,10 @@ public class GameFrame extends JFrame {
 
             @Override
             public void paint(Graphics g) {
-
+                Image currentImage = currentView.getCurrentImage();
+                if(currentImage != null) {
+                    g.drawImage(currentImage, 0, 0, null);
+                }
             }
         };
         createdViewport.addMouseListener(new MouseListener() {
@@ -102,21 +107,11 @@ public class GameFrame extends JFrame {
 
     public static void setView(final View view) {
         Clock.stop();
+        Clock.setStepsPerSecond(FPS);
         currentView = view;
         currentView.init();
         Clock.setCurrentView(currentView);
         Clock.start();
-    }
-
-    /**
-     * Handles key-pressed-events.
-     * @param key The key that has been pressed.
-     */
-    private void keyPressed(KeyEvent key) {
-        if(currentView == null) {
-            return;
-        }
-        currentView.keyPressed(key);
     }
 
     public JComponent getViewport(){
