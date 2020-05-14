@@ -17,14 +17,14 @@ public class GameBoard implements View {
     private static final int TILE_WIDTH = 32;
     private static final int TILE_HEIGHT = 32;
 
-    private int visible_width;
-    private int visible_height;
+    private final int visible_width;
+    private final int visible_height;
 
     private int topLeftTileX = 0;
     private int topLeftTileY = 0;
 
-    private int board_width;
-    private int board_height;
+    private final int board_width;
+    private final int board_height;
 
     private int markerPosX = 0;
     private int markerPosY = 0;
@@ -45,6 +45,17 @@ public class GameBoard implements View {
     private static final int MOVEMENT_PER_FRAME = 2;
     private int walkingAnimationTimer = 0;
     private final int WALKING_ANIMATION_FRAME_DURATION = 10;
+
+    private int selectedMenuPoint = 0;
+    private final int LINE_HEIGHT = 8;
+    private final int MENU_PADDING = 2;
+    private final int MENU_LINE_PADDING = 5;
+
+    private boolean unitMenuShown = false;
+    private int unitMenuPosX = 0;
+    private int unitMenuPosY = 0;
+    private final int unitMenuWidth = 64;
+    private final int unitMenuHeight = 128;
 
     public GameBoard(int width, int height) {
         board_width = width;
@@ -84,84 +95,50 @@ public class GameBoard implements View {
         g.drawRect(markerPosX * TILE_WIDTH, markerPosY * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
         //arrows
         if (!path.isEmpty()) {
-            int lastDirection = -1;
+            int lastDirection = getDirection(radiusCenterX, radiusCenterY, path.get(0).getPosX(),path.get(0).getPosY());
             for (int i = 0; i < path.size(); i++) {
-                int dir = getDirection(selectedUnit.getPosX(), selectedUnit.getPosY(), path.get(i).getPosX(), path.get(i).getPosY());
-                if (dir == lastDirection || lastDirection == -1) {
-                    switch (dir) {
-                        case 0:
+                if(path.size()==1){
+                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, lastDirection+2), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
+                } else if(i<path.size()-1){
+                    int dir = getDirection(path.get(i).getPosX(), path.get(i).getPosY(), path.get(i+1).getPosX(), path.get(i+1).getPosY());
+                    if(lastDirection==dir){
+                        if(dir==0||dir==2){
                             g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 0), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                            break;
-                        case 1:
+                        }
+                        if(dir==1||dir==3){
                             g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 1), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                            break;
-                        case 2:
-                            g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 0), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                            break;
-                        case 3:
-                            g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 1), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                            break;
+                        }
+                    } else {
+                        if(lastDirection==0){
+                            if(dir==1){
+                                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 8), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
+                            } else {
+                                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 7), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
+                            }
+                        } else if(lastDirection==1){
+                            if(dir==0){
+                                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 9), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
+                            } else {
+                                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 7), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
+                            }
+                        } else if(lastDirection==2){
+                            if(dir==1){
+                                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 6), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
+                            } else {
+                                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 9), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
+                            }
+                        } else if(lastDirection==3){
+                            if(dir==0){
+                                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 6), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
+                            } else {
+                                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 8), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
+                            }
+                        }
                     }
-                } else if (i == path.size() - 1) {
-                    switch (lastDirection) {
-                        case 0:
-                            g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 2), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                            break;
-                        case 1:
-                            g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 3), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                            break;
-                        case 2:
-                            g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 4), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                            break;
-                        case 3:
-                            g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 5), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                            break;
-                    }
+                    lastDirection = dir;
                 } else {
-                    switch (lastDirection) {
-                        case 0:
-                            switch (dir) {
-                                case 1:
-                                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 8), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                                    break;
-                                case 3:
-                                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 7), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                                    break;
-                            }
-                            break;
-                        case 1:
-                            switch (dir) {
-                                case 0:
-                                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 9), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                                    break;
-                                case 2:
-                                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 7), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                                    break;
-                            }
-                            break;
-                        case 2:
-                            switch (dir) {
-                                case 1:
-                                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 6), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                                    break;
-                                case 3:
-                                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 9), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                                    break;
-                            }
-                            break;
-                        case 3:
-                            switch (dir) {
-                                case 0:
-                                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 6), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                                    break;
-                                case 2:
-                                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, 8), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
-                                    break;
-                            }
-                            break;
-                    }
+                    g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, lastDirection+2), path.get(i).getPosX()*TILE_WIDTH, path.get(i).getPosY()*TILE_HEIGHT, null);
                 }
-                lastDirection = dir;
             }
         }
         //units
@@ -171,6 +148,10 @@ public class GameBoard implements View {
             } else {
                 g.drawImage(ResourceManager.getIdleFrame(u.getSpritesheetPos(), idleAnimationFrame), u.getPosX() * TILE_WIDTH, u.getPosY() * TILE_HEIGHT - 16, null);
             }
+        }
+        //unitMenu
+        if(unitMenuShown){
+            drawUnitMenu(g);
         }
         return image;
     }
@@ -372,6 +353,11 @@ public class GameBoard implements View {
                 }
             }
         }
+        if(selectedUnit!=null&&!selectedUnit.isMoving()){
+            unitMenuShown = true;
+        } else {
+            unitMenuShown = false;
+        }
     }
 
     private int getDistance(int posX, int posY, int x, int y) {
@@ -452,5 +438,48 @@ public class GameBoard implements View {
         } else {
             return 3;
         }
+    }
+
+    private void endRound(){
+        for (Unit u: units) {
+            u.setMoved(false);
+            u.setMovementLeft(u.getMovementRange());
+        }
+    }
+
+    private boolean checkEndRound(){
+        for (Unit u: units) {
+            if(!u.isMoved()){
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void drawUnitMenu(Graphics g){
+        g.setColor(new Color(50,50,50));
+        if(selectedUnit.getPosX()-topLeftTileX>=visible_width-5){
+            unitMenuPosX = (selectedUnit.getPosX()-topLeftTileX)*TILE_WIDTH - unitMenuWidth - TILE_WIDTH/2;
+        } else {
+            unitMenuPosX = (selectedUnit.getPosX()-topLeftTileX)*TILE_WIDTH + TILE_WIDTH + TILE_WIDTH/2;
+        }
+        if(selectedUnit.getPosY()-topLeftTileY==0){
+            unitMenuPosY = 0;
+        } else if(selectedUnit.getPosY()-topLeftTileY>=visible_height-3){
+            unitMenuPosY = visible_height*TILE_HEIGHT - unitMenuHeight;
+        } else {
+            unitMenuPosY = selectedUnit.getPosY()*TILE_HEIGHT -TILE_HEIGHT;
+        }
+        g.fillRect(unitMenuPosX,unitMenuPosY,unitMenuWidth, unitMenuHeight);
+        g.setColor(new Color(255,255,255));
+        g.drawString("Deselect", unitMenuPosX+MENU_PADDING,unitMenuPosY+MENU_PADDING+LINE_HEIGHT);
+        g.drawString("Move", unitMenuPosX+MENU_PADDING, unitMenuPosY+MENU_PADDING+LINE_HEIGHT + (MENU_LINE_PADDING+LINE_HEIGHT));
+        g.drawString("Attack", unitMenuPosX+MENU_PADDING,unitMenuPosY+MENU_PADDING+LINE_HEIGHT+ (MENU_LINE_PADDING+LINE_HEIGHT)*2);
+        g.drawString("Info", unitMenuPosX+MENU_PADDING,unitMenuPosY+MENU_PADDING+LINE_HEIGHT+ (MENU_LINE_PADDING+LINE_HEIGHT)*3);
+        g.drawString("Wait", unitMenuPosX+MENU_PADDING,unitMenuPosY+MENU_PADDING+LINE_HEIGHT+ (MENU_LINE_PADDING+LINE_HEIGHT)*4);
+    }
+
+    private void drawUnitInfoPanel(Graphics g){
+
     }
 }

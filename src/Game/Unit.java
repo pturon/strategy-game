@@ -18,7 +18,8 @@ public class Unit {
     private int offsetX = 0;
     private int offsetY = 0;
 
-    private int movementRange = 4;
+    private boolean moved = false;
+    private int movementRange = 50;
     private int attackRange = 1;
     private int movementLeft = movementRange;
 
@@ -156,5 +157,13 @@ public class Unit {
 
     public void setWalkingAnimationFrame(int walkingAnimationFrame) {
         this.walkingAnimationFrame = walkingAnimationFrame;
+    }
+
+    public boolean isMoved() {
+        return moved;
+    }
+
+    public void setMoved(boolean moved) {
+        this.moved = moved;
     }
 }
