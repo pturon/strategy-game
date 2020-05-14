@@ -1,5 +1,8 @@
 package Game;
 
+import Enums.Direction;
+import Enums.UnitState;
+
 import java.awt.*;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -18,7 +21,9 @@ public class Unit {
     private int offsetX = 0;
     private int offsetY = 0;
 
-    private boolean moved = false;
+    private UnitState state = UnitState.IDLE;
+    private boolean movedThisRound = false;
+
     private int movementRange = 50;
     private int attackRange = 1;
     private int movementLeft = movementRange;
@@ -120,17 +125,17 @@ public class Unit {
         this.offsetY = offsetY;
     }
 
-    public int getMovementDirection(){
+    public Direction getMovementDirection(){
         if(getNextTileFromPath()==null){
-            return -1;
+            return null;
         } else if(posX==getNextTileFromPath().getPosX()&&posY>getNextTileFromPath().getPosY()){
-            return 0;
+            return Direction.TOP;
         } else if(posX<getNextTileFromPath().getPosX()&&posY==getNextTileFromPath().getPosY()){
-            return 1;
+            return Direction.RIGHT;
         } else if(posX==getNextTileFromPath().getPosX()&&posY<getNextTileFromPath().getPosY()){
-            return 2;
+            return Direction.BOTTOM;
         } else {
-            return 3;
+            return Direction.LEFT;
         }
 
     }
@@ -159,11 +164,27 @@ public class Unit {
         this.walkingAnimationFrame = walkingAnimationFrame;
     }
 
-    public boolean isMoved() {
-        return moved;
+    public UnitState getState() {
+        return state;
     }
 
-    public void setMoved(boolean moved) {
-        this.moved = moved;
+    public void setState(UnitState state) {
+        this.state = state;
+    }
+
+    public boolean hasMovedThisRound() {
+        return movedThisRound;
+    }
+
+    public void setMovedThisRound(boolean movedThisRound) {
+        this.movedThisRound = movedThisRound;
+    }
+
+    public Tile getUnitDestination(){
+        Tile x = new Tile(0,0);
+        for (Tile t: path) {
+            x = t;
+        }
+        return x;
     }
 }
