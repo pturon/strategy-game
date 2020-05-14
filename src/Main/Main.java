@@ -8,6 +8,7 @@ public class Main {
         frame.setView(new GameBoard(5,5));
         GraphicsManager manager = new GraphicsManager(frame.getViewport());
         ResourceManager.load();
+        TextManager.init();
         manager.start();
     }
 }
