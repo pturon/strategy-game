@@ -394,10 +394,10 @@ public class GameBoard implements View {
                         if (distanceToTarget[x][y] <= max && distanceToTarget[x][y] != -1) {
                             g.setColor(new Color(0, 0, 255));
                             g.fillRect(x * TILE_WIDTH, y * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
-                            g.setColor(new Color(0, 0, 0));
-                            g.drawString(Integer.toString(distanceToTarget[x][y]), x * TILE_WIDTH, y * TILE_HEIGHT + 30);
                         }
                     }
+                    g.setColor(new Color(0, 0, 0));
+                    g.drawString(Integer.toString(distanceToTarget[x][y]), x * TILE_WIDTH, y * TILE_HEIGHT + 30);
                 }
             }
         }
@@ -412,7 +412,7 @@ public class GameBoard implements View {
     }
 
     private void generateDistance(int startX, int startY) {
-        int max = selectedUnit.getMovementLeft();
+        int max = selectedUnit.getMovementLeft() + selectedUnit.getAttackRange();
         resetDistance();
         pathQueue = new LinkedList<>();
         pathQueue.add(new Tile(startX, startY));
@@ -421,39 +421,47 @@ public class GameBoard implements View {
             Tile top = pathQueue.peek();
             int x = top.getPosX();
             int y = top.getPosY();
-            if (x > 0 && x < board_width - 1) {
-                if (y > 0 && y < board_height - 1) {
+            if (x >= 0 && x < board_width) {
+                if (y >= 0 && y < board_height) {
                     if (distanceToTarget[x][y] < max) {
-                        if (obstacles[x + 1][y]) {
-                            distanceToTarget[x + 1][y] = 99;
-                        } else {
-                            if (distanceToTarget[x + 1][y] == -1) {
-                                distanceToTarget[x + 1][y] = distanceToTarget[x][y] + 1;
-                                pathQueue.add(new Tile(x + 1, y));
+                        if(x<board_width-1){
+                            if (obstacles[x + 1][y]) {
+                                distanceToTarget[x + 1][y] = 99;
+                            } else {
+                                if (distanceToTarget[x + 1][y] == -1) {
+                                    distanceToTarget[x + 1][y] = distanceToTarget[x][y] + 1;
+                                    pathQueue.add(new Tile(x + 1, y));
+                                }
                             }
                         }
-                        if (obstacles[x - 1][y]) {
-                            distanceToTarget[x - 1][y] = 99;
-                        } else {
-                            if (distanceToTarget[x - 1][y] == -1) {
-                                distanceToTarget[x - 1][y] = distanceToTarget[x][y] + 1;
-                                pathQueue.add(new Tile(x - 1, y));
+                        if(x>0){
+                            if (obstacles[x - 1][y]) {
+                                distanceToTarget[x - 1][y] = 99;
+                            } else {
+                                if (distanceToTarget[x - 1][y] == -1) {
+                                    distanceToTarget[x - 1][y] = distanceToTarget[x][y] + 1;
+                                    pathQueue.add(new Tile(x - 1, y));
+                                }
                             }
                         }
-                        if (obstacles[x][y + 1]) {
-                            distanceToTarget[x][y + 1] = 99;
-                        } else {
-                            if (distanceToTarget[x][y + 1] == -1) {
-                                distanceToTarget[x][y + 1] = distanceToTarget[x][y] + 1;
-                                pathQueue.add(new Tile(x, y + 1));
+                        if(y<board_height-1){
+                            if (obstacles[x][y + 1]) {
+                                distanceToTarget[x][y + 1] = 99;
+                            } else {
+                                if (distanceToTarget[x][y + 1] == -1) {
+                                    distanceToTarget[x][y + 1] = distanceToTarget[x][y] + 1;
+                                    pathQueue.add(new Tile(x, y + 1));
+                                }
                             }
                         }
-                        if (obstacles[x][y - 1]) {
-                            distanceToTarget[x][y - 1] = 99;
-                        } else {
-                            if (distanceToTarget[x][y - 1] == -1) {
-                                distanceToTarget[x][y - 1] = distanceToTarget[x][y] + 1;
-                                pathQueue.add(new Tile(x, y - 1));
+                        if(y>0){
+                            if (obstacles[x][y - 1]) {
+                                distanceToTarget[x][y - 1] = 99;
+                            } else {
+                                if (distanceToTarget[x][y - 1] == -1) {
+                                    distanceToTarget[x][y - 1] = distanceToTarget[x][y] + 1;
+                                    pathQueue.add(new Tile(x, y - 1));
+                                }
                             }
                         }
                     }
