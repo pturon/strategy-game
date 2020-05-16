@@ -24,9 +24,10 @@ public class Unit {
     private UnitState state = UnitState.IDLE;
     private boolean movedThisRound = false;
 
-    private int movementRange = 50;
+    private int movementRange = 5;
     private int attackRange = 1;
     private int movementLeft = movementRange;
+    private Direction movementDirection = Direction.BOTTOM;
 
     private int walkingAnimationFrame = 0;
 
@@ -126,18 +127,11 @@ public class Unit {
     }
 
     public Direction getMovementDirection(){
-        if(getNextTileFromPath()==null){
-            return null;
-        } else if(posX==getNextTileFromPath().getPosX()&&posY>getNextTileFromPath().getPosY()){
-            return Direction.TOP;
-        } else if(posX<getNextTileFromPath().getPosX()&&posY==getNextTileFromPath().getPosY()){
-            return Direction.RIGHT;
-        } else if(posX==getNextTileFromPath().getPosX()&&posY<getNextTileFromPath().getPosY()){
-            return Direction.BOTTOM;
-        } else {
-            return Direction.LEFT;
-        }
+        return movementDirection;
+    }
 
+    public void setMovementDirection(Direction direction){
+        movementDirection = direction;
     }
 
     public int getLastPosX() {

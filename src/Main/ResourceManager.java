@@ -1,8 +1,10 @@
 package Main;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.nio.Buffer;
 import java.util.ArrayList;
 
 public class ResourceManager {
@@ -12,6 +14,7 @@ public class ResourceManager {
     public static final int SPRITE_HEIGHT = 48;
 
     private static BufferedImage arrows;
+    private static BufferedImage actionMenu;
 
     private static BufferedImage background;
     private static ArrayList<BufferedImage> unitIdleSprites = new ArrayList<>();
@@ -21,6 +24,7 @@ public class ResourceManager {
     public static void load(){
         try {
             arrows = ImageIO.read(new File(FOLDER+"arrows.png"));
+            actionMenu = ImageIO.read(new File(FOLDER+"actionMenu.png"));
         } catch (Exception e){
             e.printStackTrace();
         }
@@ -71,5 +75,16 @@ public class ResourceManager {
 
     public static BufferedImage getArrow(int width, int height, int type){
         return arrows.getSubimage(width*type,0,width,height);
+    }
+
+    public static BufferedImage getActionMenuBackground(int width, int height, int size){
+        BufferedImage image = new BufferedImage(width, height*size, BufferedImage.TYPE_INT_ARGB);
+        Graphics g = image.getGraphics();
+        g.drawImage(actionMenu.getSubimage(0,0, width, height), 0, 0, null);
+        for(int i = 0; i < size-1; i++){
+            g.drawImage(actionMenu.getSubimage(0,height, width, height), 0, (height*i), null);
+        }
+        g.drawImage(actionMenu.getSubimage(0,height*2, width, height), 0, (height*size)-height, null);
+        return image;
     }
 }

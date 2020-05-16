@@ -2,6 +2,7 @@ package Game;
 
 import Enums.Direction;
 import Enums.UnitState;
+import Enums.Menu;
 import Main.Clock;
 import Main.ResourceManager;
 import Main.TextManager;
@@ -14,6 +15,7 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.Stack;
 
 public class GameBoard implements View {
 
@@ -36,10 +38,15 @@ public class GameBoard implements View {
     private int radiusCenterY = 0;
     private int radiusSize = 0;
 
-    private LinkedList<Tile> path;
-
     private ArrayList<Unit> units;
     private Unit selectedUnit;
+    private String nextUnitAction = "none";
+
+    private final boolean[][] obstacles;
+    private final int[][] distanceToTarget;
+    private Stack<Tile> path;
+    private int[] arrows;
+    private LinkedList<Tile> pathQueue;
 
     private int idleAnimationFrame = 0;
     private int idleAnimationTimer = 0;
@@ -49,24 +56,28 @@ public class GameBoard implements View {
     private int walkingAnimationTimer = 0;
     private final int WALKING_ANIMATION_FRAME_DURATION = 10;
 
-    private int selectedMenuPoint = 0;
-    private final int LINE_HEIGHT = 8;
-    private final int MENU_PADDING = 2;
-    private final int MENU_LINE_PADDING = 5;
+    private int selectedMenuPoint = -1;
 
-    private boolean unitMenuShown = false;
-    private int unitMenuPosX = 0;
-    private int unitMenuPosY = 0;
-    private final int unitMenuWidth = 64;
-    private final int unitMenuHeight = 128;
+    private Menu shownMenu = Menu.NONE;
+
+    private int actionMenuPosX = 0;
+    private int actionMenuPosY = 0;
+    private final int actionMenuWidth = 64;
+    private final int actionMenuLineHeight = 32;
+    private int actionMenuSize = 2;
+
+    private int round = 0;
 
     public GameBoard(int width, int height) {
         board_width = width;
         board_height = height;
+        obstacles = new boolean[board_width][board_height];
+        obstacles[7][5] = true;
+        distanceToTarget = new int[board_width][board_height];
         units = new ArrayList<>();
         visible_width = 640 / TILE_WIDTH;
         visible_height = 512 / TILE_HEIGHT;
-        path = new LinkedList<>();
+        path = new Stack<>();
 
         units.add(new Unit("test_sprite"));
         for (Unit u : units) {
@@ -83,7 +94,7 @@ public class GameBoard implements View {
         Graphics g = image.getGraphics();
 
         if (selectedUnit != null) {
-            showRadius(selectedUnit, g);
+            showRadius(g);
         }
 
         //grid
@@ -114,9 +125,16 @@ public class GameBoard implements View {
                 g.drawImage(ResourceManager.getIdleFrame(u.getSpritesheetPos(), idleAnimationFrame), u.getPosX() * TILE_WIDTH, u.getPosY() * TILE_HEIGHT - 16, null);
             }
         }
-        //unitMenu
-        if (unitMenuShown) {
-            drawUnitMenu(g);
+        //menus
+        switch (shownMenu){
+            case NONE:
+                break;
+            case UNIT_INFO:
+                drawUnitInfoPanel(g);
+                break;
+            case ACTION_MENU:
+                drawActionMenu(g);
+                break;
         }
         return image;
     }
@@ -143,17 +161,17 @@ public class GameBoard implements View {
 
     @Override
     public void keyTyped(KeyEvent key) {
-
+        System.out.println("typed");
     }
 
     @Override
     public void keyPressed(KeyEvent key) {
-
+        System.out.println("pressed");
     }
 
     @Override
     public void keyReleased(KeyEvent key) {
-
+        System.out.println("released");
     }
 
     @Override
@@ -161,11 +179,35 @@ public class GameBoard implements View {
         markerPosX = mouse.getX() / TILE_WIDTH;
         markerPosY = mouse.getY() / TILE_HEIGHT;
         if (selectedUnit != null) {
-            if (selectedUnit.getState() != UnitState.MOVING) {
-                if (getDistance(selectedUnit.getPosX(), selectedUnit.getPosY(), markerPosX, markerPosY) <= selectedUnit.getMovementLeft()) {
-                    createArrowPath(markerPosX, markerPosY);
+            if(shownMenu==Menu.NONE){
+                if (selectedUnit.getState() != UnitState.MOVING) {
+                    Tile t = new Tile(markerPosX, markerPosY);
+                    if (getDistance(t) <= selectedUnit.getMovementLeft() && getDistance(t) != -1) {
+                        generatePath(markerPosX, markerPosY, selectedUnit.getPosX(), selectedUnit.getPosY());
+                    }
                 }
             }
+        }
+        if(shownMenu==Menu.ACTION_MENU){
+            if(actionMenuPosX<=mouse.getX()){
+                if(actionMenuPosX+actionMenuWidth>mouse.getX()){
+                    if(actionMenuPosY<=mouse.getY()){
+                        if(actionMenuPosY+(actionMenuLineHeight*actionMenuSize)>mouse.getY()){
+                            selectedMenuPoint = (mouse.getY()-actionMenuPosY)/actionMenuLineHeight;
+                        } else {
+                            selectedMenuPoint = -1;
+                        }
+                    } else {
+                        selectedMenuPoint = -1;
+                    }
+                } else {
+                    selectedMenuPoint = -1;
+                }
+            } else {
+                selectedMenuPoint = -1;
+            }
+        } else {
+            selectedMenuPoint = -1;
         }
     }
 
@@ -183,21 +225,40 @@ public class GameBoard implements View {
     public void mouseClicked(MouseEvent mouse) {
         if (selectedUnit != null) {
             if (selectedUnit.getState() != UnitState.MOVING) {
-                if (getDistance(selectedUnit.getPosX(), selectedUnit.getPosY(), markerPosX, markerPosY) > selectedUnit.getMovementLeft()) {
-                    selectedUnit = null;
-                } else {
-                    moveUnit(selectedUnit, markerPosX, markerPosY);
-                    createArrowPath(markerPosX, markerPosY);
+                if(shownMenu==Menu.NONE){
+                    if (getDistance(selectedUnit.getPosX(), selectedUnit.getPosY(), markerPosX, markerPosY) > selectedUnit.getMovementLeft()) {
+                        selectedUnit = null;
+                        path = null;
+                        arrows = null;
+                    } else {
+                        generatePath(markerPosX, markerPosY, selectedUnit.getPosX(), selectedUnit.getPosY());
+                        shownMenu = Menu.ACTION_MENU;
+                    }
+                } else if(shownMenu==Menu.ACTION_MENU){
+                    if(selectedMenuPoint==0){
+                        shownMenu = Menu.NONE;
+                        generatePath(markerPosX, markerPosY, selectedUnit.getPosX(), selectedUnit.getPosY());
+                        nextUnitAction = "none";
+                    } else if(selectedMenuPoint==actionMenuSize-1){
+                        System.out.println("test");
+                        moveUnit(selectedUnit);
+                        shownMenu=Menu.NONE;
+                        nextUnitAction = "sleep";
+                    } else {
+                    }
                 }
             }
         } else {
             for (Unit u : units) {
                 if (markerPosX == u.getPosX() - topLeftTileX) {
                     if (markerPosY == u.getPosY() - topLeftTileY) {
-                        selectedUnit = u;
-                        radiusCenterX = markerPosX;
-                        radiusCenterY = markerPosY;
-                        radiusSize = u.getAttackRange() + u.getMovementLeft();
+                        if(u.getState()==UnitState.IDLE){
+                            selectedUnit = u;
+                            radiusCenterX = markerPosX;
+                            radiusCenterY = markerPosY;
+                            radiusSize = u.getMovementLeft();
+                            generateDistance(markerPosX, markerPosY);
+                        }
                     }
                 }
             }
@@ -242,7 +303,8 @@ public class GameBoard implements View {
             }
         }
         if (selectedUnit != null) {
-            if (selectedUnit.isMoving()) {
+            if (selectedUnit.getState() == UnitState.MOVING) {
+                shownMenu = Menu.NONE;
                 if (walkingAnimationTimer < WALKING_ANIMATION_FRAME_DURATION) {
                     walkingAnimationTimer++;
                 } else {
@@ -253,19 +315,15 @@ public class GameBoard implements View {
                         selectedUnit.setWalkingAnimationFrame(selectedUnit.getWalkingAnimationFrame() + 1);
                     }
                 }
+                selectedUnit.setMovementDirection(getDirection(new Tile(selectedUnit.getPosX(), selectedUnit.getPosY()), getNextTile()));
                 switch (selectedUnit.getMovementDirection()) {
                     case TOP:
                         if (Math.abs(selectedUnit.getOffsetY()) == TILE_HEIGHT) {
                             selectedUnit.setPosY(selectedUnit.getPosY() - 1);
-                            selectedUnit.removeTileFromPath();
                             selectedUnit.setOffsetX(0);
                             selectedUnit.setOffsetY(0);
-                            selectedUnit.setMovementLeft(selectedUnit.getMovementLeft() - 1);
-                            if (!selectedUnit.isMoving()) {
-                                radiusCenterX = selectedUnit.getPosX();
-                                radiusCenterY = selectedUnit.getPosY();
-                                radiusSize = selectedUnit.getMovementLeft() + selectedUnit.getAttackRange();
-                            }
+                            selectedUnit.setMovementLeft(selectedUnit.getMovementLeft()-1);
+                            path.pop();
                         } else {
                             selectedUnit.setOffsetY(selectedUnit.getOffsetY() - MOVEMENT_PER_FRAME);
                         }
@@ -273,15 +331,10 @@ public class GameBoard implements View {
                     case RIGHT:
                         if (Math.abs(selectedUnit.getOffsetX()) == TILE_WIDTH) {
                             selectedUnit.setPosX(selectedUnit.getPosX() + 1);
-                            selectedUnit.removeTileFromPath();
                             selectedUnit.setOffsetX(0);
                             selectedUnit.setOffsetY(0);
-                            selectedUnit.setMovementLeft(selectedUnit.getMovementLeft() - 1);
-                            if (!selectedUnit.isMoving()) {
-                                radiusCenterX = selectedUnit.getPosX();
-                                radiusCenterY = selectedUnit.getPosY();
-                                radiusSize = selectedUnit.getMovementLeft() + selectedUnit.getAttackRange();
-                            }
+                            selectedUnit.setMovementLeft(selectedUnit.getMovementLeft()-1);
+                            path.pop();
                         } else {
                             selectedUnit.setOffsetX(selectedUnit.getOffsetX() + MOVEMENT_PER_FRAME);
                         }
@@ -289,15 +342,10 @@ public class GameBoard implements View {
                     case BOTTOM:
                         if (Math.abs(selectedUnit.getOffsetY()) == TILE_HEIGHT) {
                             selectedUnit.setPosY(selectedUnit.getPosY() + 1);
-                            selectedUnit.removeTileFromPath();
                             selectedUnit.setOffsetX(0);
                             selectedUnit.setOffsetY(0);
-                            selectedUnit.setMovementLeft(selectedUnit.getMovementLeft() - 1);
-                            if (!selectedUnit.isMoving()) {
-                                radiusCenterX = selectedUnit.getPosX();
-                                radiusCenterY = selectedUnit.getPosY();
-                                radiusSize = selectedUnit.getMovementLeft() + selectedUnit.getAttackRange();
-                            }
+                            selectedUnit.setMovementLeft(selectedUnit.getMovementLeft()-1);
+                            path.pop();
                         } else {
                             selectedUnit.setOffsetY(selectedUnit.getOffsetY() + MOVEMENT_PER_FRAME);
                         }
@@ -305,79 +353,251 @@ public class GameBoard implements View {
                     case LEFT:
                         if (Math.abs(selectedUnit.getOffsetX()) == TILE_WIDTH) {
                             selectedUnit.setPosX(selectedUnit.getPosX() - 1);
-                            selectedUnit.removeTileFromPath();
                             selectedUnit.setOffsetX(0);
                             selectedUnit.setOffsetY(0);
-                            selectedUnit.setMovementLeft(selectedUnit.getMovementLeft() - 1);
-                            if (!selectedUnit.isMoving()) {
-                                radiusCenterX = selectedUnit.getPosX();
-                                radiusCenterY = selectedUnit.getPosY();
-                                radiusSize = selectedUnit.getMovementLeft() + selectedUnit.getAttackRange();
-                            }
+                            selectedUnit.setMovementLeft(selectedUnit.getMovementLeft()-1);
+                            path.pop();
                         } else {
                             selectedUnit.setOffsetX(selectedUnit.getOffsetX() - MOVEMENT_PER_FRAME);
                         }
                         break;
                 }
             }
-            if (selectedUnit.getState() == UnitState.MOVING && selectedUnit.getNextTileFromPath() == null) {
-                selectedUnit.setState(UnitState.IDLE);
+            if (selectedUnit.getState() == UnitState.MOVING && path.isEmpty()) {
+                if(nextUnitAction.equals("sleep")){
+                    selectedUnit.setState(UnitState.SLEEP);
+                    if(checkEndRound()){
+                        endRound();
+                    }
+                } else {
+                    selectedUnit.setState(UnitState.IDLE);
+                    generateDistance(selectedUnit.getPosX(), selectedUnit.getPosY());
+                }
             }
-            if (selectedUnit.hasMovedThisRound() && selectedUnit.getState() == UnitState.IDLE) {
-                unitMenuShown = true;
-            } else {
-                unitMenuShown = false;
-            }
-        } else {
-            unitMenuShown = false;
         }
+    }
+
+    private Tile getNextTile() {
+        return path.get(path.size() - 1);
     }
 
     private int getDistance(int posX, int posY, int x, int y) {
         return Math.abs(posX - x) + Math.abs(posY - y);
     }
 
-    private void showRadius(Unit u, Graphics g) {
-        for (int x = radiusCenterX - radiusSize; x <= radiusCenterX + radiusSize; x++) {
-            for (int y = radiusCenterY - radiusSize; y <= radiusCenterY + radiusSize; y++) {
-                if (getDistance(radiusCenterX, radiusCenterY, x, y) == radiusSize) {
-                    g.setColor(new Color(255, 0, 0));
-                    g.fillRect(x * TILE_WIDTH, y * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
-                }
-                if (getDistance(radiusCenterX, radiusCenterY, x, y) < radiusSize) {
-                    g.setColor(new Color(0, 0, 255));
-                    g.fillRect(x * TILE_WIDTH, y * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+    private void showRadius(Graphics g) {
+        int max = radiusSize;
+        for (int x = radiusCenterX - max; x <= radiusCenterX + max; x++) {
+            for (int y = radiusCenterY - max; y <= radiusCenterY + max; y++) {
+                if (x >= 0 && y >= 0 && x < board_width && y < board_height) {
+                    if (x >= topLeftTileX && x < topLeftTileX + visible_width && y >= topLeftTileY && y < topLeftTileY + visible_width) {
+                        if (distanceToTarget[x][y] <= max && distanceToTarget[x][y] != -1) {
+                            g.setColor(new Color(0, 0, 255));
+                            g.fillRect(x * TILE_WIDTH, y * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+                            g.setColor(new Color(0, 0, 0));
+                            g.drawString(Integer.toString(distanceToTarget[x][y]), x * TILE_WIDTH, y * TILE_HEIGHT + 30);
+                        }
+                    }
                 }
             }
-        }
-        if (selectedUnit.isMoving()) {
-
         }
     }
 
-    private void moveUnit(Unit u, int x, int y) {
-        u.setState(UnitState.MOVING);
-        u.setMovedThisRound(true);
-        path = new LinkedList<>();
-        int curX = u.getPosX();
-        int curY = u.getPosY();
-        int dist = getDistance(curX, curY, x, y);
-        for (int i = 0; i < dist; i++) {
-            if (Math.abs(curX - x) > Math.abs(curY - y)) {
-                if (curX - x < 0) {
-                    curX++;
-                } else {
-                    curX--;
-                }
-            } else {
-                if (curY - y < 0) {
-                    curY++;
-                } else {
-                    curY--;
+    private void resetDistance(){
+        for (int x = 0; x < distanceToTarget.length; x++) {
+            for (int y = 0; y < distanceToTarget[x].length; y++) {
+                distanceToTarget[x][y] = -1;
+            }
+        }
+    }
+
+    private void generateDistance(int startX, int startY) {
+        int max = selectedUnit.getMovementLeft();
+        resetDistance();
+        pathQueue = new LinkedList<>();
+        pathQueue.add(new Tile(startX, startY));
+        distanceToTarget[startX][startY] = 0;
+        while (!pathQueue.isEmpty()) {
+            Tile top = pathQueue.peek();
+            int x = top.getPosX();
+            int y = top.getPosY();
+            if (x > 0 && x < board_width - 1) {
+                if (y > 0 && y < board_height - 1) {
+                    if (distanceToTarget[x][y] < max) {
+                        if (obstacles[x + 1][y]) {
+                            distanceToTarget[x + 1][y] = 99;
+                        } else {
+                            if (distanceToTarget[x + 1][y] == -1) {
+                                distanceToTarget[x + 1][y] = distanceToTarget[x][y] + 1;
+                                pathQueue.add(new Tile(x + 1, y));
+                            }
+                        }
+                        if (obstacles[x - 1][y]) {
+                            distanceToTarget[x - 1][y] = 99;
+                        } else {
+                            if (distanceToTarget[x - 1][y] == -1) {
+                                distanceToTarget[x - 1][y] = distanceToTarget[x][y] + 1;
+                                pathQueue.add(new Tile(x - 1, y));
+                            }
+                        }
+                        if (obstacles[x][y + 1]) {
+                            distanceToTarget[x][y + 1] = 99;
+                        } else {
+                            if (distanceToTarget[x][y + 1] == -1) {
+                                distanceToTarget[x][y + 1] = distanceToTarget[x][y] + 1;
+                                pathQueue.add(new Tile(x, y + 1));
+                            }
+                        }
+                        if (obstacles[x][y - 1]) {
+                            distanceToTarget[x][y - 1] = 99;
+                        } else {
+                            if (distanceToTarget[x][y - 1] == -1) {
+                                distanceToTarget[x][y - 1] = distanceToTarget[x][y] + 1;
+                                pathQueue.add(new Tile(x, y - 1));
+                            }
+                        }
+                    }
                 }
             }
-            u.addTileToPath(curX, curY);
+            pathQueue.pop();
         }
+    }
+
+    private void generatePath(int startX, int startY, int targetX, int targetY) {
+        int length = getDistance(new Tile(startX, startY));
+        int dist = length;
+        path = new Stack<>();
+        arrows = new int[length];
+        Tile currentTile = new Tile(startX, startY);
+        while (dist > 0) {
+            path.add(currentTile);
+            Tile bestTile = currentTile;
+            for (Tile t : getNeighbourTiles(currentTile)) {
+                if (getDistance(t) != -1 && getDistance(t) < getDistance(bestTile)) {
+                    bestTile = t;
+                }
+            }
+            currentTile = bestTile;
+            dist = getDistance(bestTile);
+        }
+        generateArrows();
+    }
+
+    private void generateArrows() {
+        if (path.size() > 0) {
+            int i = 0;
+            Direction lastDirection = getDirection(new Tile(selectedUnit.getPosX(), selectedUnit.getPosY()), path.peek());
+            for (int j = path.size() - 1; j >= 0; j--, i++) {
+                if (j == 0) {
+                    switch (lastDirection) {
+                        case TOP:
+                            arrows[i] = 2;
+                            break;
+                        case RIGHT:
+                            arrows[i] = 3;
+                            break;
+                        case BOTTOM:
+                            arrows[i] = 4;
+                            break;
+                        case LEFT:
+                            arrows[i] = 5;
+                            break;
+                    }
+                } else {
+                    Direction direction = getDirection(path.get(j), path.get(j - 1));
+                    if (lastDirection == direction) {
+                        if (direction == Direction.TOP || direction == Direction.BOTTOM) {
+                            arrows[i] = 0;
+                        } else {
+                            arrows[i] = 1;
+                        }
+                    } else {
+                        switch (lastDirection) {
+                            case TOP:
+                                switch (direction) {
+                                    case RIGHT:
+                                        arrows[i] = 8;
+                                        break;
+                                    case LEFT:
+                                        arrows[i] = 7;
+                                        break;
+                                }
+                                break;
+                            case RIGHT:
+                                switch (direction) {
+                                    case TOP:
+                                        arrows[i] = 9;
+                                        break;
+                                    case BOTTOM:
+                                        arrows[i] = 7;
+                                        break;
+                                }
+                                break;
+                            case BOTTOM:
+                                switch (direction) {
+                                    case RIGHT:
+                                        arrows[i] = 6;
+                                        break;
+                                    case LEFT:
+                                        arrows[i] = 9;
+                                        break;
+                                }
+                                break;
+                            case LEFT:
+                                switch (direction) {
+                                    case TOP:
+                                        arrows[i] = 6;
+                                        break;
+                                    case BOTTOM:
+                                        arrows[i] = 8;
+                                        break;
+                                }
+                                break;
+                        }
+                    }
+                    lastDirection = direction;
+                }
+            }
+        }
+    }
+
+    private void drawArrows(Graphics g) {
+        if (arrows != null && arrows.length > 0) {
+            int j = path.size()-1;
+            for (int i = arrows.length-path.size(); i < arrows.length; i++) {
+                Tile t = path.get(j);
+                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, arrows[i]), t.getPosX()*TILE_WIDTH, t.getPosY()*TILE_HEIGHT, null);
+                j--;
+            }
+        }
+    }
+
+    private int getDistance(Tile t) {
+        return distanceToTarget[t.getPosX()][t.getPosY()];
+    }
+
+    private ArrayList<Tile> getNeighbourTiles(Tile t) {
+        ArrayList<Tile> val = new ArrayList<>();
+        int x = t.getPosX();
+        int y = t.getPosY();
+        if (x < board_width - 1) {
+            val.add(new Tile(x + 1, y));
+        }
+        if (x > 0) {
+            val.add(new Tile(x - 1, y));
+        }
+        if (y < board_height - 1) {
+            val.add(new Tile(x, y + 1));
+        }
+        if (y > 0) {
+            val.add(new Tile(x, y - 1));
+        }
+        return val;
+    }
+
+    private void moveUnit(Unit u) {
+        u.setState(UnitState.MOVING);
+        u.setMovedThisRound(true);
     }
 
     private void resetUnitPos(Unit u) {
@@ -387,7 +607,11 @@ public class GameBoard implements View {
         u.setPosY(u.getLastPosY());
     }
 
-    private Direction getDirection(int x1, int y1, int x2, int y2) {
+    private Direction getDirection(Tile start, Tile end) {
+        int x1 = start.getPosX();
+        int y1 = start.getPosY();
+        int x2 = end.getPosX();
+        int y2 = end.getPosY();
         if (x1 == x2 && y1 > y2) {
             return Direction.TOP;
         } else if (x1 < x2 && y1 == y2) {
@@ -400,6 +624,9 @@ public class GameBoard implements View {
     }
 
     private void endRound() {
+        selectedUnit = null;
+        resetDistance();
+        round ++;
         for (Unit u : units) {
             u.setMovementLeft(u.getMovementRange());
             u.setState(UnitState.IDLE);
@@ -418,159 +645,48 @@ public class GameBoard implements View {
         return true;
     }
 
-    private void drawUnitMenu(Graphics g) {
-        if (selectedUnit != null) {
-            g.setColor(new Color(50, 50, 50));
-            if (selectedUnit.getPosX() - topLeftTileX >= visible_width - 5) {
-                unitMenuPosX = (selectedUnit.getPosX() - topLeftTileX) * TILE_WIDTH - unitMenuWidth - TILE_WIDTH / 2;
-            } else {
-                unitMenuPosX = (selectedUnit.getPosX() - topLeftTileX) * TILE_WIDTH + TILE_WIDTH + TILE_WIDTH / 2;
-            }
-            if (selectedUnit.getPosY() - topLeftTileY == 0) {
-                unitMenuPosY = 0;
-            } else if (selectedUnit.getPosY() - topLeftTileY >= visible_height - 3) {
-                unitMenuPosY = visible_height * TILE_HEIGHT - unitMenuHeight;
-            } else {
-                unitMenuPosY = selectedUnit.getPosY() * TILE_HEIGHT - TILE_HEIGHT;
-            }
-            g.fillRect(unitMenuPosX, unitMenuPosY, unitMenuWidth, unitMenuHeight);
-            ArrayList<String> texts = TextManager.getUnitMenuTexts();
-            g.setColor(new Color(255, 255, 255));
-            for (int i = 0; i < texts.size(); i++) {
-                int width = g.getFontMetrics().stringWidth(texts.get(i));
-                g.drawString(texts.get(i), unitMenuPosX + (unitMenuWidth - width) / 2, unitMenuPosY + MENU_PADDING + LINE_HEIGHT + (MENU_LINE_PADDING + LINE_HEIGHT) * i);
-            }
-        }
-    }
-
     private void drawUnitInfoPanel(Graphics g) {
 
     }
 
-    private void drawArrows(Graphics g) {
-        if (selectedUnit != null) {
-            if (!path.isEmpty()) {
-                Direction lastDirection = Direction.TOP;
-                for (int i = 0; i < path.size(); i++) {
-                    Direction direction;
-                    int type = 0;
-                    if (i == path.size() - 1) {
-                        if (i == 0) {
-                            direction = getDirection(selectedUnit.getPosX(), selectedUnit.getPosY(), path.get(i).getPosX(), path.get(i).getPosY());
-                        } else {
-                            direction = lastDirection;
-                        }
-                        switch (direction) {
-                            case TOP:
-                                type = 2;
-                                break;
-                            case RIGHT:
-                                type = 3;
-                                break;
-                            case BOTTOM:
-                                type = 4;
-                                break;
-                            case LEFT:
-                                type = 5;
-                                break;
-                        }
-                    } else {
-                        if (i == 0) {
-                            lastDirection = getDirection(selectedUnit.getPosX(), selectedUnit.getPosY(), path.get(i).getPosX(), path.get(i).getPosY());
-                        }
-                        direction = getDirection(path.get(i).getPosX(), path.get(i).getPosY(), path.get(i + 1).getPosX(), path.get(i + 1).getPosY());
-                        if (direction == lastDirection) {
-                            if (direction == Direction.TOP || direction == Direction.BOTTOM) {
-                                type = 0;
-                            } else {
-                                type = 1;
-                            }
-                        } else {
-                            switch (lastDirection) {
-                                case TOP:
-                                    switch (direction) {
-                                        case RIGHT:
-                                            type = 8;
-                                            break;
-                                        case LEFT:
-                                            type = 7;
-                                            break;
-                                    }
-                                    break;
-                                case RIGHT:
-                                    switch (direction) {
-                                        case TOP:
-                                            type = 9;
-                                            break;
-                                        case BOTTOM:
-                                            type = 7;
-                                            break;
-                                    }
-                                    break;
-                                case BOTTOM:
-                                    switch (direction) {
-                                        case RIGHT:
-                                            type = 6;
-                                            break;
-                                        case LEFT:
-                                            type = 9;
-                                            break;
-                                    }
-                                    break;
-                                case LEFT:
-                                    switch (direction) {
-                                        case TOP:
-                                            type = 6;
-                                            break;
-                                        case BOTTOM:
-                                            type = 8;
-                                            break;
-                                    }
-                                    break;
-                            }
-
-                        }
-                        lastDirection = direction;
-                    }
-                    if (getUnitPosInPath() <= i) {
-                        g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, type), path.get(i).getPosX() * TILE_WIDTH, path.get(i).getPosY() * TILE_HEIGHT, null);
-                    }
-                }
-            }
+    private void drawActionMenu(Graphics g){
+        actionMenuSize = 2;
+        if(enemyInRange()){
+            actionMenuSize = 3;
         }
-    }
-
-    private void createArrowPath(int destinationX, int destinationY) {
-        path = new LinkedList<>();
-        int curX = selectedUnit.getPosX();
-        int curY = selectedUnit.getPosY();
-        int dist = getDistance(curX, curY, destinationX, destinationY);
-        for (int i = 0; i < dist; i++) {
-            if (Math.abs(curX - destinationX) > Math.abs(curY - destinationY)) {
-                if (curX - destinationX < 0) {
-                    curX++;
-                } else {
-                    curX--;
-                }
+        int x = path.get(0).getPosX();
+        int y = path.get(0).getPosY();
+        if(x-topLeftTileX>=visible_width-3){
+            actionMenuPosX = (x-(actionMenuWidth/TILE_WIDTH)) * TILE_WIDTH;
+        } else {
+            actionMenuPosX = (x+1) * TILE_WIDTH;
+        }
+        if(y-topLeftTileY==0){
+            actionMenuPosY = y * TILE_HEIGHT;
+        } else {
+            if(y-topLeftTileY>=visible_height-actionMenuSize+1){
+                System.out.println("moin");
+                actionMenuPosY = (visible_height-actionMenuSize) * TILE_HEIGHT;
             } else {
-                if (curY - destinationY < 0) {
-                    curY++;
-                } else {
-                    curY--;
-                }
+                actionMenuPosY = (y - 1) * TILE_HEIGHT;
             }
-            path.add(new Tile(curX, curY));
         }
+        g.drawImage(ResourceManager.getActionMenuBackground(actionMenuWidth, actionMenuLineHeight, actionMenuSize), actionMenuPosX,actionMenuPosY, null);
+
+        if(selectedMenuPoint!=-1){
+            g.setColor(new Color(255,255,255, 100));
+            g.fillRect(actionMenuPosX, actionMenuPosY+actionMenuLineHeight*selectedMenuPoint, actionMenuWidth, actionMenuLineHeight);
+        }
+        ArrayList<String> text = TextManager.getActionMenuTexts();
+        g.setColor(new Color(0,0,0));
+        int width = g.getFontMetrics().stringWidth(text.get(0));
+        int height = g.getFontMetrics().getHeight();
+        g.drawString(text.get(0), actionMenuPosX + (actionMenuWidth-width)/2, actionMenuPosY + actionMenuLineHeight - (actionMenuLineHeight-height)/2);
+        width = g.getFontMetrics().stringWidth(text.get(text.size()-1));
+        g.drawString(text.get(text.size()-1), actionMenuPosX + (actionMenuWidth-width)/2, actionMenuPosY + (actionMenuLineHeight*(text.size()-1)) - (actionMenuLineHeight-height)/2);
     }
 
-    private int getUnitPosInPath() {
-        for (int i = 0; i < path.size(); i++) {
-            if (path.get(i).getPosX() == selectedUnit.getPosX()) {
-                if (path.get(i).getPosY() == selectedUnit.getPosY()) {
-                    return i + 1;
-                }
-            }
-        }
-        return -1;
+    private boolean enemyInRange(){
+        return false;
     }
 }
