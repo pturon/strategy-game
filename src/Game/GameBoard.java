@@ -3,7 +3,6 @@ package Game;
 import Enums.Direction;
 import Enums.UnitState;
 import Enums.Menu;
-import Main.Clock;
 import Main.ResourceManager;
 import Main.TextManager;
 import Main.View;
@@ -16,6 +15,8 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Stack;
+
+import static java.awt.event.KeyEvent.*;
 
 public class GameBoard implements View {
 
@@ -55,6 +56,10 @@ public class GameBoard implements View {
     private static final int MOVEMENT_PER_FRAME = 2;
     private int walkingAnimationTimer = 0;
     private final int WALKING_ANIMATION_FRAME_DURATION = 10;
+
+    private static final int  MAX_SCROLL_BUFFER = 4;
+    private int scrollBuffer = 0;
+
 
     private int selectedMenuPoint = -1;
 
@@ -111,18 +116,20 @@ public class GameBoard implements View {
         drawArrows(g);
         //units
         for (Unit u : units) {
-            if (u.getState() == UnitState.MOVING) {
-                if (u.getMovementDirection() == Direction.TOP) {
-                    g.drawImage(ResourceManager.getWalkingFrame(u.getSpritesheetPos(), u.getWalkingAnimationFrame(), 0), u.getPosX() * TILE_WIDTH + u.getOffsetX(), u.getPosY() * TILE_HEIGHT - 16 + u.getOffsetY(), null);
-                } else if (u.getMovementDirection() == Direction.RIGHT) {
-                    g.drawImage(ResourceManager.getWalkingFrame(u.getSpritesheetPos(), u.getWalkingAnimationFrame(), 1), u.getPosX() * TILE_WIDTH + u.getOffsetX(), u.getPosY() * TILE_HEIGHT - 16 + u.getOffsetY(), null);
-                } else if (u.getMovementDirection() == Direction.BOTTOM) {
-                    g.drawImage(ResourceManager.getWalkingFrame(u.getSpritesheetPos(), u.getWalkingAnimationFrame(), 2), u.getPosX() * TILE_WIDTH + u.getOffsetX(), u.getPosY() * TILE_HEIGHT - 16 + u.getOffsetY(), null);
-                } else if (u.getMovementDirection() == Direction.LEFT) {
-                    g.drawImage(ResourceManager.getWalkingFrame(u.getSpritesheetPos(), u.getWalkingAnimationFrame(), 3), u.getPosX() * TILE_WIDTH + u.getOffsetX(), u.getPosY() * TILE_HEIGHT - 16 + u.getOffsetY(), null);
+            if(u.getPosX()>=topLeftTileX&&u.getPosX()<topLeftTileX+visible_width&&u.getPosY()>=topLeftTileY&&u.getPosY()<topLeftTileY+visible_height){
+                if (u.getState() == UnitState.MOVING) {
+                    if (u.getMovementDirection() == Direction.TOP) {
+                        g.drawImage(ResourceManager.getWalkingFrame(u.getSpritesheetPos(), u.getWalkingAnimationFrame(), 0), (u.getPosX() - topLeftTileX) * TILE_WIDTH + u.getOffsetX(), (u.getPosY() - topLeftTileY) * TILE_HEIGHT - 16 + u.getOffsetY(), null);
+                    } else if (u.getMovementDirection() == Direction.RIGHT) {
+                        g.drawImage(ResourceManager.getWalkingFrame(u.getSpritesheetPos(), u.getWalkingAnimationFrame(), 1), (u.getPosX() - topLeftTileX) * TILE_WIDTH + u.getOffsetX(), (u.getPosY() - topLeftTileY) * TILE_HEIGHT - 16 + u.getOffsetY(), null);
+                    } else if (u.getMovementDirection() == Direction.BOTTOM) {
+                        g.drawImage(ResourceManager.getWalkingFrame(u.getSpritesheetPos(), u.getWalkingAnimationFrame(), 2), (u.getPosX() - topLeftTileX) * TILE_WIDTH + u.getOffsetX(), (u.getPosY() - topLeftTileY) * TILE_HEIGHT - 16 + u.getOffsetY(), null);
+                    } else if (u.getMovementDirection() == Direction.LEFT) {
+                        g.drawImage(ResourceManager.getWalkingFrame(u.getSpritesheetPos(), u.getWalkingAnimationFrame(), 3), (u.getPosX() - topLeftTileX) * TILE_WIDTH + u.getOffsetX(), (u.getPosY() - topLeftTileY) * TILE_HEIGHT - 16 + u.getOffsetY(), null);
+                    }
+                } else {
+                    g.drawImage(ResourceManager.getIdleFrame(u.getSpritesheetPos(), idleAnimationFrame), (u.getPosX() - topLeftTileX) * TILE_WIDTH, (u.getPosY() - topLeftTileY) * TILE_HEIGHT - 16, null);
                 }
-            } else {
-                g.drawImage(ResourceManager.getIdleFrame(u.getSpritesheetPos(), idleAnimationFrame), u.getPosX() * TILE_WIDTH, u.getPosY() * TILE_HEIGHT - 16, null);
             }
         }
         //menus
@@ -166,7 +173,45 @@ public class GameBoard implements View {
 
     @Override
     public void keyPressed(KeyEvent key) {
-        System.out.println("pressed");
+        switch (key.getKeyCode()){
+            case VK_W:
+                if(scrollBuffer==MAX_SCROLL_BUFFER){
+                    scrollBuffer = 0;
+                    if(topLeftTileY>0){
+                        topLeftTileY--;
+                    }
+                } else {
+                    scrollBuffer++;
+                }
+                break;
+            case VK_D:
+                if(scrollBuffer==MAX_SCROLL_BUFFER){
+                    if(topLeftTileX+visible_width<board_width-1){
+                        topLeftTileX++;
+                    }
+                } else {
+                    scrollBuffer++;
+                }
+                break;
+            case VK_S:
+                if(scrollBuffer==MAX_SCROLL_BUFFER){
+                    if(topLeftTileY+visible_height<board_height-1){
+                        topLeftTileY++;
+                    }
+                } else {
+                    scrollBuffer++;
+                }
+                break;
+            case VK_A:
+                if(scrollBuffer==MAX_SCROLL_BUFFER){
+                    if(topLeftTileX>0){
+                        topLeftTileX--;
+                    }
+                } else {
+                    scrollBuffer++;
+                }
+                break;
+        }
     }
 
     @Override
@@ -226,7 +271,7 @@ public class GameBoard implements View {
         if (selectedUnit != null) {
             if (selectedUnit.getState() != UnitState.MOVING) {
                 if(shownMenu==Menu.NONE){
-                    if (getDistance(selectedUnit.getPosX(), selectedUnit.getPosY(), markerPosX, markerPosY) > selectedUnit.getMovementLeft()) {
+                    if (getDistance(new Tile(markerPosX, markerPosY))==0||getDistance(new Tile(markerPosX, markerPosY))>selectedUnit.getMovementLeft()) {
                         selectedUnit = null;
                         path = null;
                         arrows = null;
