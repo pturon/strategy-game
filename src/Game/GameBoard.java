@@ -57,7 +57,7 @@ public class GameBoard implements View {
     private int walkingAnimationTimer = 0;
     private final int WALKING_ANIMATION_FRAME_DURATION = 10;
 
-    private static final int  MAX_SCROLL_BUFFER = 4;
+    private static final int  MAX_SCROLL_BUFFER = 2;
     private int scrollBuffer = 0;
 
 
@@ -186,6 +186,7 @@ public class GameBoard implements View {
                 break;
             case VK_D:
                 if(scrollBuffer==MAX_SCROLL_BUFFER){
+                    scrollBuffer = 0;
                     if(topLeftTileX+visible_width<board_width-1){
                         topLeftTileX++;
                     }
@@ -195,6 +196,7 @@ public class GameBoard implements View {
                 break;
             case VK_S:
                 if(scrollBuffer==MAX_SCROLL_BUFFER){
+                    scrollBuffer = 0;
                     if(topLeftTileY+visible_height<board_height-1){
                         topLeftTileY++;
                     }
@@ -204,6 +206,7 @@ public class GameBoard implements View {
                 break;
             case VK_A:
                 if(scrollBuffer==MAX_SCROLL_BUFFER){
+                    scrollBuffer = 0;
                     if(topLeftTileX>0){
                         topLeftTileX--;
                     }
@@ -226,9 +229,9 @@ public class GameBoard implements View {
         if (selectedUnit != null) {
             if(shownMenu==Menu.NONE){
                 if (selectedUnit.getState() != UnitState.MOVING) {
-                    Tile t = new Tile(markerPosX, markerPosY);
+                    Tile t = new Tile(markerPosX+topLeftTileX, markerPosY+topLeftTileY);
                     if (getDistance(t) <= selectedUnit.getMovementLeft() && getDistance(t) != -1) {
-                        generatePath(markerPosX, markerPosY, selectedUnit.getPosX(), selectedUnit.getPosY());
+                        generatePath(markerPosX + topLeftTileX, markerPosY + topLeftTileY, selectedUnit.getPosX(), selectedUnit.getPosY());
                     }
                 }
             }
@@ -271,18 +274,18 @@ public class GameBoard implements View {
         if (selectedUnit != null) {
             if (selectedUnit.getState() != UnitState.MOVING) {
                 if(shownMenu==Menu.NONE){
-                    if (getDistance(new Tile(markerPosX, markerPosY))==0||getDistance(new Tile(markerPosX, markerPosY))>selectedUnit.getMovementLeft()) {
+                    if (getDistance(new Tile(markerPosX+topLeftTileX, markerPosY+topLeftTileY))==0||getDistance(new Tile(markerPosX+topLeftTileX, markerPosY+topLeftTileY))>selectedUnit.getMovementLeft()) {
                         selectedUnit = null;
                         path = null;
                         arrows = null;
                     } else {
-                        generatePath(markerPosX, markerPosY, selectedUnit.getPosX(), selectedUnit.getPosY());
+                        generatePath(markerPosX+topLeftTileX, markerPosY+topLeftTileY, selectedUnit.getPosX(), selectedUnit.getPosY());
                         shownMenu = Menu.ACTION_MENU;
                     }
                 } else if(shownMenu==Menu.ACTION_MENU){
                     if(selectedMenuPoint==0){
                         shownMenu = Menu.NONE;
-                        generatePath(markerPosX, markerPosY, selectedUnit.getPosX(), selectedUnit.getPosY());
+                        generatePath(markerPosX+topLeftTileX, markerPosY+topLeftTileY, selectedUnit.getPosX(), selectedUnit.getPosY());
                         nextUnitAction = "none";
                     } else if(selectedMenuPoint==actionMenuSize-1){
                         System.out.println("test");
@@ -299,10 +302,10 @@ public class GameBoard implements View {
                     if (markerPosY == u.getPosY() - topLeftTileY) {
                         if(u.getState()==UnitState.IDLE){
                             selectedUnit = u;
-                            radiusCenterX = markerPosX;
-                            radiusCenterY = markerPosY;
+                            radiusCenterX = markerPosX + topLeftTileX;
+                            radiusCenterY = markerPosY +  topLeftTileY;
                             radiusSize = u.getMovementLeft();
-                            generateDistance(markerPosX, markerPosY);
+                            generateDistance(markerPosX + topLeftTileX, markerPosY + topLeftTileY);
                         }
                     }
                 }
@@ -438,11 +441,11 @@ public class GameBoard implements View {
                     if (x >= topLeftTileX && x < topLeftTileX + visible_width && y >= topLeftTileY && y < topLeftTileY + visible_width) {
                         if (distanceToTarget[x][y] <= max && distanceToTarget[x][y] != -1) {
                             g.setColor(new Color(0, 0, 255));
-                            g.fillRect(x * TILE_WIDTH, y * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
+                            g.fillRect((x-topLeftTileX) * TILE_WIDTH, (y-topLeftTileY) * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT);
                         }
                     }
                     g.setColor(new Color(0, 0, 0));
-                    g.drawString(Integer.toString(distanceToTarget[x][y]), x * TILE_WIDTH, y * TILE_HEIGHT + 30);
+                    g.drawString(Integer.toString(distanceToTarget[x][y]), (x-topLeftTileX) * TILE_WIDTH, (y-topLeftTileY) * TILE_HEIGHT + 30);
                 }
             }
         }
@@ -619,7 +622,7 @@ public class GameBoard implements View {
             int j = path.size()-1;
             for (int i = arrows.length-path.size(); i < arrows.length; i++) {
                 Tile t = path.get(j);
-                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, arrows[i]), t.getPosX()*TILE_WIDTH, t.getPosY()*TILE_HEIGHT, null);
+                g.drawImage(ResourceManager.getArrow(TILE_WIDTH, TILE_HEIGHT, arrows[i]), (t.getPosX()-topLeftTileX)*TILE_WIDTH, (t.getPosY()-topLeftTileY)*TILE_HEIGHT, null);
                 j--;
             }
         }
@@ -710,18 +713,18 @@ public class GameBoard implements View {
         int x = path.get(0).getPosX();
         int y = path.get(0).getPosY();
         if(x-topLeftTileX>=visible_width-3){
-            actionMenuPosX = (x-(actionMenuWidth/TILE_WIDTH)) * TILE_WIDTH;
+            actionMenuPosX = (x-(actionMenuWidth/TILE_WIDTH)-topLeftTileX) * TILE_WIDTH;
         } else {
-            actionMenuPosX = (x+1) * TILE_WIDTH;
+            actionMenuPosX = (x+1-topLeftTileX) * TILE_WIDTH;
         }
         if(y-topLeftTileY==0){
             actionMenuPosY = y * TILE_HEIGHT;
         } else {
             if(y-topLeftTileY>=visible_height-actionMenuSize+1){
                 System.out.println("moin");
-                actionMenuPosY = (visible_height-actionMenuSize) * TILE_HEIGHT;
+                actionMenuPosY = (visible_height-actionMenuSize-topLeftTileY) * TILE_HEIGHT;
             } else {
-                actionMenuPosY = (y - 1) * TILE_HEIGHT;
+                actionMenuPosY = (y - 1-topLeftTileY) * TILE_HEIGHT;
             }
         }
         g.drawImage(ResourceManager.getActionMenuBackground(actionMenuWidth, actionMenuLineHeight, actionMenuSize), actionMenuPosX,actionMenuPosY, null);
